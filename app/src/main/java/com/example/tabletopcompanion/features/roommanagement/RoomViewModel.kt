@@ -12,6 +12,7 @@ import com.example.tabletopcompanion.data.model.Room
 import com.example.tabletopcompanion.data.UserProfileRepository
 import com.example.tabletopcompanion.data.model.template.GameTemplate
 import com.example.tabletopcompanion.data.network.ollama.OllamaService
+import com.example.tabletopcompanion.network.model.* // Import all P2P messages
 import com.example.tabletopcompanion.util.Result
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -58,6 +59,9 @@ class RoomViewModel(
     private val _gameMessage = MutableStateFlow<String?>(null)
     val gameMessage: StateFlow<String?> = _gameMessage.asStateFlow()
 
+    private val _indicatorValues = MutableStateFlow<Map<String, String>>(emptyMap())
+    val indicatorValues: StateFlow<Map<String, String>> = _indicatorValues.asStateFlow()
+
     // NSD related
     private lateinit var nsdHelper: NsdHelper
     val discoveredServices: StateFlow<List<android.net.nsd.NsdServiceInfo>> // Directly expose from NsdHelper
@@ -86,7 +90,11 @@ class RoomViewModel(
         super.onCleared()
         stopNsdRegistration()
         stopNsdDiscovery() // Ensure discovery is also stopped
+        p2pManager.shutdown() // Shutdown P2P manager
+        gameEngine?.onGameStateUpdate?.value = null
     }
+
+    fun getCurrentUserId(): String = userProfileRepository.getCurrentUserId()
 
     fun loadAvailableTemplates() {
         viewModelScope.launch {
@@ -204,6 +212,20 @@ class RoomViewModel(
                 }
                 _gameMessage.value = "Player ${message.username} joined."
             }
+            is PlayerActionIntentMsg -> {
+                val actingPlayer = _roomState.value?.players?.find { it.id == message.playerId }
+                if (actingPlayer != null) {
+                    android.util.Log.d("RoomViewModel_Host", "Received PlayerActionIntentMsg for action '${message.actionId}' from player ${actingPlayer.username} (${message.playerId})")
+                    // Optional: Add validation here - e.g., is it this player's turn according to gameEngine?
+                    // For now, host executes the action on behalf of the player.
+                    // gameEngine.performAction will emit new game state, which is then broadcast.
+                    gameEngine?.performAction(actionId = message.actionId, actingPlayerId = message.playerId, parameters = message.parameters)
+                } else {
+                    android.util.Log.e("RoomViewModel_Host", "Player not found for PlayerActionIntentMsg: ID ${message.playerId}")
+                    // Optionally send an error message back to the specific client who sent this
+                    // p2pManager.sendMessageToClient(clientId, ErrorMessageMsg("Invalid player ID in your action request."))
+                }
+            }
             // Placeholder for other message types like GameActionMsg, ChatMsg etc.
             else -> _gameMessage.value = "Host received unhandled message: $message from $clientId"
         }
@@ -251,17 +273,36 @@ class RoomViewModel(
             return
         }
 
-        gameEngine = GameEngine(currentTemplate.gameLogic, currentRoom.players)
+        gameEngine = GameEngine(currentTemplate.gameLogic, currentRoom.players, currentTemplate.uiDefinition)
 
         viewModelScope.launch {
+            var previousMessage: String? = null
+            var previousIndicatorValues: Map<String, String>? = null
+
             gameEngine?.onGameStateUpdate?.collect { gameStateBundle ->
                 gameStateBundle?.let {
                     _currentPlayerName.value = it.currentPlayer?.username
                     _currentPhaseName.value = it.currentPhaseTurnName
                     _gameMessage.value = it.message
-                    // If host, broadcast GameStateUpdateMsg
-                    if (currentRoom.host.id == userProfileRepository.getCurrentUserId()) {
-                        p2pManager.broadcastMessageToAll(GameStateUpdateMsg(it.currentPlayer?.username, it.currentPhaseTurnName, it.message))
+                    _indicatorValues.value = it.indicatorValues
+
+                    // If host, broadcast GameStateUpdateMsg if relevant data changed
+                    if (currentRoom.host.id == getCurrentUserId()) {
+                        val messageChanged = it.message != previousMessage && it.message != null
+                        val indicatorsChanged = it.indicatorValues != previousIndicatorValues
+
+                        if (messageChanged || indicatorsChanged) {
+                            p2pManager.broadcastMessageToAll(
+                                GameStateUpdateMsg(
+                                    it.currentPlayer?.username,
+                                    it.currentPhaseTurnName,
+                                    it.message,
+                                    it.indicatorValues
+                                )
+                            )
+                            previousMessage = it.message
+                            previousIndicatorValues = it.indicatorValues
+                        }
                     }
                 }
             }
@@ -302,22 +343,25 @@ class RoomViewModel(
     }
 
     fun requestPlayerAction(actionId: String) {
-        // If host, tell engine and broadcast. If client, send request to host.
-        if (_roomState.value?.host?.id == userProfileRepository.getCurrentUserId()) {
-            val currentRoom = _roomState.value ?: return
-            val engine = gameEngine ?: return
-            val actingPlayerId = currentRoom.players.getOrNull(engine.currentPlayerIndex)?.id ?: return
+        viewModelScope.launch { // Ensure it's launched in a coroutine if not already
+            val currentUserId = getCurrentUserId() // Assuming this method exists and works
+            val room = _roomState.value ?: return@launch // Exit if room state is null
 
-            viewModelScope.launch {
-                val result = engine.performAction(actionId, actingPlayerId)
-                if (result is Result.Error) {
-                    _gameMessage.value = "Action Error: ${result.exception.message}"
-                }
-                // GameStateUpdateMsg is sent via gameEngine.onGameStateUpdate collector
+            if (room.host.id == currentUserId) { // User is the HOST
+                android.util.Log.d("RoomViewModel", "Host performing action: $actionId with params: $parameters")
+                gameEngine?.performAction(actionId, currentUserId, parameters)
+                // performAction in GameEngine should call emitCurrentGameState,
+                // which in turn triggers host's broadcast of GameStateUpdateMsg.
+            } else { // User is a CLIENT
+                android.util.Log.d("RoomViewModel", "Client requesting action: $actionId")
+                p2pManager.sendMessageToServer(
+                    PlayerActionIntentMsg(
+                        playerId = currentUserId,
+                        actionId = actionId,
+                        parameters = null // No parameters from UI yet
+                    )
+                )
             }
-        } else {
-            // TODO: Send PlayerActionRequestMsg(actionId) to host
-            _gameMessage.value = "Client action: RequestPlayerAction $actionId (not implemented yet)"
         }
     }
 
@@ -384,6 +428,7 @@ class RoomViewModel(
                 _currentPlayerName.value = message.currentPlayerName
                 _currentPhaseName.value = message.currentPhaseName
                 _gameMessage.value = message.gameMessage
+                _indicatorValues.value = message.indicatorValues ?: emptyMap()
             }
             is StartGameMsg -> {
                 // Host has started the game, client needs to initialize its game engine
@@ -406,12 +451,17 @@ class RoomViewModel(
                         if (startGameAfterLoad && room.currentGameState == "PLAYING") {
                              // Client-side game engine initialization
                             if (gameEngine == null && _loadedGameTemplate.value != null && _roomState.value != null) {
-                                gameEngine = GameEngine(_loadedGameTemplate.value!!.gameLogic, _roomState.value!!.players)
+                                gameEngine = GameEngine(
+                                    _loadedGameTemplate.value!!.gameLogic,
+                                    _roomState.value!!.players,
+                                    _loadedGameTemplate.value!!.uiDefinition
+                                )
                                 // Client doesn't collect its own engine's updates for broadcasting,
                                 // it relies on GameStateUpdateMsg from host.
                                 // But it needs to initialize its engine to follow along.
                                 gameEngine?.initializeGame() // Initialize to the start state
                                 _gameMessage.value = "Game engine initialized as client."
+                                // Initial indicator values will be set by the first GameStateUpdateMsg or StartGameMsg
                             }
                         }
                     }

@@ -13,6 +13,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.tabletopcompanion.data.UserProfileRepository
+import com.example.tabletopcompanion.data.model.template.UIDefinition
+import com.google.accompanist.flowlayout.FlowRow
+import androidx.compose.runtime.saveable.rememberSaveable // For input fields
+import androidx.compose.runtime.snapshots.SnapshotStateMap // For input fields
+import androidx.compose.foundation.text.KeyboardOptions // For input fields
+import androidx.compose.ui.text.input.KeyboardType // For input fields
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,23 +111,15 @@ fun RoomScreen(
                         Button(onClick = { roomViewModel.requestNextPlayer() }) { Text("Next Player") }
                         Button(onClick = { roomViewModel.requestNextPhase() }) { Text("Next Phase") }
                     }
-                    // Placeholder for showing available actions to the current player
-                    loadedGameTemplate?.gameLogic?.actions?.filter { action ->
-                        // Basic check: action is available to any player or specifically to current player's phase/turn
-                        // More complex logic would involve checking actionDef.triggerConditions against game state
-                        val currentPhase = roomViewModel.loadedGameTemplate.value?.gameLogic?.phasesTurns?.find { it.id == currentPhaseName }
-                        currentPhase?.playerActions?.contains(action.id) == true || currentPhase?.playerActions == null // Simplistic filter
-                    }?.take(2)?.forEach { action -> // Show first 2 available actions as example
-                        Button(
-                            onClick = { roomViewModel.requestPlayerAction(action.id) },
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                        ) {
-                            Text(action.name ?: action.id)
-                        }
-                    }
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
+
+            // Dynamic UI Controls based on Game Template
+            DynamicGameControlsUI(
+                uiDefinition = loadedGameTemplate?.uiDefinition,
+                roomViewModel = roomViewModel
+            )
         }
 
         // Add Player Section (Host only, during SETUP)
@@ -199,6 +198,86 @@ fun RoomScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.padding(top = 8.dp)
                             )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DynamicGameControlsUI(uiDefinition: UIDefinition?, roomViewModel: RoomViewModel) {
+    val indicatorValues by roomViewModel.indicatorValues.collectAsState()
+    val inputFieldValues = remember { mutableStateMapOf<String, String>() }
+
+    if (uiDefinition == null) {
+        Text("No UI definition loaded or game template not fully processed yet.")
+        return
+    }
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    // Indicators Section
+    if (uiDefinition.indicators.isNotEmpty()) {
+        Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Game Indicators", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
+                uiDefinition.indicators.forEach { indicator ->
+                    val displayValue = indicatorValues[indicator.id] ?: indicator.initialValue
+                    Text(text = "${indicator.label}: $displayValue", modifier = Modifier.padding(bottom = 4.dp))
+                }
+            }
+        }
+    }
+
+    // Input Fields Section
+    if (uiDefinition.inputFields.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(8.dp))
+        Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Inputs", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
+                uiDefinition.inputFields.forEach { fieldConfig ->
+                    OutlinedTextField(
+                        value = inputFieldValues[fieldConfig.id] ?: fieldConfig.defaultValue ?: "",
+                        onValueChange = { inputFieldValues[fieldConfig.id] = it },
+                        label = { Text(fieldConfig.label) },
+                        keyboardOptions = if (fieldConfig.type == "number") KeyboardOptions(keyboardType = KeyboardType.Number) else KeyboardOptions.Default,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    )
+                }
+            }
+        }
+    }
+
+    Spacer(modifier = Modifier.height(8.dp))
+
+    // Buttons Section
+    if (uiDefinition.buttons.isNotEmpty()) {
+        Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Available Actions", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    mainAxisSpacing = 8.dp,
+                    crossAxisSpacing = 8.dp
+                ) {
+                    uiDefinition.buttons.forEach { button ->
+                        Button(
+                            onClick = {
+                                val params = mutableMapOf<String, String>()
+                                uiDefinition.inputFields.forEach { fieldConfig ->
+                                    val key = fieldConfig.targetActionParameterKey ?: fieldConfig.id
+                                    inputFieldValues[fieldConfig.id]?.let { value ->
+                                        params[key] = value
+                                    }
+                                }
+                                roomViewModel.requestPlayerAction(button.actionId, params.ifEmpty { null })
+                                inputFieldValues.clear() // Clear inputs after action
+                            },
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        ) {
+                            Text(button.text)
                         }
                     }
                 }
