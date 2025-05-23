@@ -9,9 +9,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.tabletopcompanion.data.TemplateRepository
+import com.example.tabletopcompanion.data.network.ollama.OllamaService
 import com.example.tabletopcompanion.features.roommanagement.CreateRoomScreen
 import com.example.tabletopcompanion.features.roommanagement.JoinRoomScreen
 import com.example.tabletopcompanion.features.roommanagement.RoomScreen
+import com.example.tabletopcompanion.features.roommanagement.RoomViewModelFactory
 import com.example.tabletopcompanion.features.templatemanagement.TemplateManagementScreen
 import com.example.tabletopcompanion.features.userprofile.UserProfileScreen
 import com.example.tabletopcompanion.ui.MainScreen
@@ -41,7 +44,9 @@ fun AppNavigation() {
             UserProfileScreen()
         }
         composable("createRoom") {
-            CreateRoomScreen(navController)
+            // Assuming TemplateRepository can be created here or provided via DI
+            // Instantiate OllamaService here
+            CreateRoomScreen(navController, RoomViewModelFactory(application, TemplateRepository(), OllamaService()))
         }
         composable("joinRoom") {
             JoinRoomScreen(navController)
@@ -50,20 +55,19 @@ fun AppNavigation() {
             TemplateManagementScreen()
         }
         composable(
-            route = "roomScreen/{roomName}/{players}",
+            route = "roomScreen/{roomId}",
             arguments = listOf(
-                navArgument("roomName") { type = NavType.StringType },
-                navArgument("players") { type = NavType.StringType } // Comma-separated list
+                navArgument("roomId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
-            val roomName = backStackEntry.arguments?.getString("roomName")?.let {
-                URLDecoder.decode(it, StandardCharsets.UTF_8.toString())
-            }
-            val playersString = backStackEntry.arguments?.getString("players")?.let {
-                URLDecoder.decode(it, StandardCharsets.UTF_8.toString())
-            }
-            val playersList = playersString?.split(",") ?: emptyList()
-            RoomScreen(roomName = roomName, players = playersList)
+            val roomId = backStackEntry.arguments?.getString("roomId")
+            // Pass the factory to RoomScreen
+            RoomScreen(
+                navController = navController,
+                roomId = roomId ?: "ERROR_NO_ROOM_ID",
+                // Instantiate OllamaService here
+                roomViewModelFactory = RoomViewModelFactory(application, TemplateRepository(), OllamaService())
+            )
         }
     }
 }
