@@ -44,12 +44,12 @@ fun AppNavigation() {
             UserProfileScreen()
         }
         composable("createRoom") {
-            // Assuming TemplateRepository can be created here or provided via DI
-            // Instantiate OllamaService here
-            CreateRoomScreen(navController, RoomViewModelFactory(application, TemplateRepository(), OllamaService()))
+            // Instantiate TemplateRepository with application context
+            CreateRoomScreen(navController, RoomViewModelFactory(application, TemplateRepository(application), OllamaService()))
         }
         composable("joinRoom") {
-            JoinRoomScreen(navController)
+            // JoinRoomScreen also needs RoomViewModelFactory which needs TemplateRepository
+            JoinRoomScreen(navController, RoomViewModelFactory(application, TemplateRepository(application), OllamaService()))
         }
         composable("templateManagement") { // Added route for TemplateManagementScreen
             TemplateManagementScreen()
@@ -65,8 +65,8 @@ fun AppNavigation() {
             RoomScreen(
                 navController = navController,
                 roomId = roomId ?: "ERROR_NO_ROOM_ID",
-                // Instantiate OllamaService here
-                roomViewModelFactory = RoomViewModelFactory(application, TemplateRepository(), OllamaService())
+                // Instantiate TemplateRepository with application context
+                roomViewModelFactory = RoomViewModelFactory(application, TemplateRepository(application), OllamaService())
             )
         }
     }
