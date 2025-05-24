@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/templateNameTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="?attr/textAppearanceListItem"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/templateDescriptionTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="?attr/textAppearanceListItemSecondary"
+        android:layout_marginTop="4dp"/>
+
+    <TextView
+        android:id="@+id/templateVersionTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="?attr/textAppearanceCaption"
+        android:layout_marginTop="4dp"/>
+
+    <TextView
+        android:id="@+id/templatePathTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="?attr/textAppearanceCaption"
+        android:layout_marginTop="2dp"/>
+
+    <TextView
+        android:id="@+id/templateOriginalZipTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="?attr/textAppearanceCaption"
+        android:layout_marginTop="2dp"/>
+
+
+    <Button
+        android:id="@+id/deleteTemplateButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Delete"
+        style="?android:attr/buttonBarButtonStyle"
+        android:textColor="@android:color/holo_red_dark"
+        android:layout_gravity="end"/>
+
+</LinearLayout>

@@ -1,0 +1,45 @@
+<resources>
+    <string name="app_name">Tabletop Companion</string>
+
+    <!-- MainActivity Button Labels -->
+    <string name="main_create_room">Create Room</string>
+    <string name="main_join_room">Join Room</string>
+    <string name="main_manage_templates">Manage Templates</string>
+    <string name="main_user_profile">User Profile</string>
+
+    <!-- Other UI Strings (add as needed) -->
+    <string name="profile_setup_title">Profile Setup</string>
+    <string name="username_hint">Enter username</string>
+    <string name="select_avatar_button">Select Avatar</string>
+    <string name="save_profile_button">Save Profile</string>
+    <string name="profile_saved_toast">Profile Saved</string>
+    <string name="username_empty_toast">Please enter a username</string>
+    <string name="error_loading_avatar_toast">Error loading avatar: %s</string>
+
+    <string name="create_room_title">Create Room</string>
+    <string name="room_name_hint">Enter room name</string>
+    <string name="create_button">Create</string>
+    <string name="room_name_empty_toast">Room name cannot be empty</string>
+    <string name="failed_to_get_room_name_toast">Failed to get room name</string>
+    <string name="room_activity_title_prefix">Room: </string>
+    <string name="room_name_not_found_error">Error - Name not found</string>
+
+    <string name="join_room_title">Join Game Room</string>
+    <string name="join_button">Join</string>
+
+    <string name="template_manager_title">Manage Templates</string>
+    <string name="import_template_button">Import Template</string>
+    <string name="template_deleted_toast">Template \'%s\' deleted</string>
+    <string name="error_copying_zip_toast">Error copying zip file: %s</string>
+    <string name="error_unzipping_toast">Error unzipping: %s</string>
+    <string name="manifest_not_found_toast">game_info.json not found in zip.</string>
+    <string name="template_imported_toast">Template \'%s\' imported successfully!</string>
+    <string name="error_parsing_manifest_toast">Error parsing game_info.json: %s</string>
+    <string name="template_item_no_description">No description</string>
+    <string name="template_item_version_na">Version: N/A</string>
+    <string name="template_item_path_prefix">Path: </string>
+    <string name="template_item_original_prefix">Original: </string>
+    <string name="template_item_original_na">N/A</string>
+    <string name="delete_button">Delete</string>
+
+</resources>

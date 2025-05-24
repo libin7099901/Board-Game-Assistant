@@ -1,73 +1,64 @@
 package com.example.tabletopcompanion
 
+import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.runtime.Composable
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
-import com.example.tabletopcompanion.data.TemplateRepository
-import com.example.tabletopcompanion.data.network.ollama.OllamaService
-import com.example.tabletopcompanion.features.roommanagement.CreateRoomScreen
-import com.example.tabletopcompanion.features.roommanagement.JoinRoomScreen
-import com.example.tabletopcompanion.features.roommanagement.RoomScreen
-import com.example.tabletopcompanion.features.roommanagement.RoomViewModelFactory
-import com.example.tabletopcompanion.features.templatemanagement.TemplateManagementScreen
-import com.example.tabletopcompanion.features.userprofile.UserProfileScreen
-import com.example.tabletopcompanion.ui.MainScreen
-import com.example.tabletopcompanion.ui.theme.TabletopCompanionTheme
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
+import android.widget.Button
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import com.example.tabletopcompanion.ui.CreateRoomActivity
+import com.example.tabletopcompanion.ui.ProfileSetupActivity
+import com.example.tabletopcompanion.ui.RoomActivity
 
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            TabletopCompanionTheme {
-                AppNavigation()
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var createRoomButton: Button
+    private lateinit var joinRoomButton: Button
+    private lateinit var manageTemplatesButton: Button
+    private lateinit var userProfileButton: Button
+
+    private val createRoomLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val data: Intent? = result.data
+            val roomName = data?.getStringExtra("roomName")
+            if (roomName != null && roomName.isNotEmpty()) {
+                val intent = Intent(this, RoomActivity::class.java)
+                intent.putExtra("roomName", roomName)
+                startActivity(intent)
+            } else {
+                Toast.makeText(this, "Failed to get room name", Toast.LENGTH_SHORT).show()
             }
         }
     }
-}
 
-@Composable
-fun AppNavigation() {
-    val navController = rememberNavController()
-    NavHost(navController = navController, startDestination = "mainScreen") {
-        composable("mainScreen") {
-            MainScreen(navController)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        createRoomButton = findViewById(R.id.createRoomButton)
+        joinRoomButton = findViewById(R.id.joinRoomButton)
+        manageTemplatesButton = findViewById(R.id.manageTemplatesButton)
+        userProfileButton = findViewById(R.id.userProfileButton)
+
+        createRoomButton.setOnClickListener {
+            val intent = Intent(this, CreateRoomActivity::class.java)
+            createRoomLauncher.launch(intent)
         }
-        composable("userProfile") {
-            UserProfileScreen()
+
+        joinRoomButton.setOnClickListener {
+            val intent = Intent(this, com.example.tabletopcompanion.ui.JoinRoomActivity::class.java)
+            startActivity(intent)
         }
-        composable("createRoom") {
-            // Instantiate TemplateRepository with application context
-            CreateRoomScreen(navController, RoomViewModelFactory(application, TemplateRepository(application), OllamaService()))
+
+        manageTemplatesButton.setOnClickListener {
+            val intent = Intent(this, com.example.tabletopcompanion.ui.TemplateManagerActivity::class.java)
+            startActivity(intent)
         }
-        composable("joinRoom") {
-            // JoinRoomScreen also needs RoomViewModelFactory which needs TemplateRepository
-            JoinRoomScreen(navController, RoomViewModelFactory(application, TemplateRepository(application), OllamaService()))
-        }
-        composable("templateManagement") { // Added route for TemplateManagementScreen
-            TemplateManagementScreen()
-        }
-        composable(
-            route = "roomScreen/{roomId}",
-            arguments = listOf(
-                navArgument("roomId") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val roomId = backStackEntry.arguments?.getString("roomId")
-            // Pass the factory to RoomScreen
-            RoomScreen(
-                navController = navController,
-                roomId = roomId ?: "ERROR_NO_ROOM_ID",
-                // Instantiate TemplateRepository with application context
-                roomViewModelFactory = RoomViewModelFactory(application, TemplateRepository(application), OllamaService())
-            )
+
+        userProfileButton.setOnClickListener {
+            val intent = Intent(this, ProfileSetupActivity::class.java)
+            startActivity(intent)
         }
     }
 }
