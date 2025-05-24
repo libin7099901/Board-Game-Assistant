@@ -77,6 +77,7 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.mockito:mockito-core:4.11.0' // Updated to a specific recent version
     testImplementation 'androidx.test:core:1.5.0' // For ApplicationProvider
+    testImplementation "androidx.arch.core:core-testing:2.1.0" // For InstantTaskExecutorRule
     // Optional: MockK (if you prefer it for Kotlin)
     // testImplementation "io.mockk:mockk:1.13.3"
 

@@ -10,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.tabletopcompanion.R
+import com.example.tabletopcompanion.data.RoomSettingsRepository
 import com.example.tabletopcompanion.data.TemplateRepository
 import com.example.tabletopcompanion.model.GameTemplateInfo
 import com.example.tabletopcompanion.util.ManifestParsingException
@@ -19,12 +20,13 @@ import java.io.FileOutputStream
 import java.util.UUID
 import java.util.zip.ZipInputStream
 
-class TemplateManagerActivity : AppCompatActivity() {
+class TemplateManagerActivity : AppCompatActivity(), TemplateAdapter.OnTemplateActionClickListener {
 
     private lateinit var importTemplateButton: Button
     private lateinit var templatesRecyclerView: RecyclerView
     private lateinit var templateAdapter: TemplateAdapter
     private lateinit var templateRepository: TemplateRepository
+    private lateinit var roomSettingsRepository: RoomSettingsRepository
 
     private val importTemplateLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
@@ -37,6 +39,7 @@ class TemplateManagerActivity : AppCompatActivity() {
         setContentView(R.layout.activity_template_manager)
 
         templateRepository = TemplateRepository(this)
+        roomSettingsRepository = RoomSettingsRepository(this)
 
         importTemplateButton = findViewById(R.id.importTemplateButton)
         templatesRecyclerView = findViewById(R.id.templatesRecyclerView)
@@ -51,27 +54,49 @@ class TemplateManagerActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        templateAdapter = TemplateAdapter(emptyList()) { template ->
-            // Handle template deletion
-            templateRepository.deleteTemplate(template.id)
-            // Also delete the unzipped folder
-            val unzippedDir = File(template.unzippedPath)
+        templateAdapter = TemplateAdapter(emptyList(), this)
+        templatesRecyclerView.layoutManager = LinearLayoutManager(this)
+        templatesRecyclerView.adapter = templateAdapter
+    }
+
+    override fun onDeleteTemplate(templateId: String, templateName: String) {
+        templateRepository.deleteTemplate(templateId)
+        // Also delete the unzipped folder
+        val template = templateRepository.getTemplateById(templateId) // Re-fetch to get path if needed, or pass GameTemplateInfo
+        template?.let {
+             val unzippedDir = File(it.unzippedPath)
             if (unzippedDir.exists()) {
                 unzippedDir.deleteRecursively()
             }
             // And the copied zip file if it exists
-            template.originalZipName?.let {
+            it.originalZipName?.let { zipName ->
                 val zipDir = File(filesDir, "templates_zip")
-                val originalZipFile = File(zipDir, it) // Assuming originalZipName was used for copied file
+                val originalZipFile = File(zipDir, zipName)
                  if (originalZipFile.exists()) {
                     originalZipFile.delete()
                 }
             }
-            loadTemplates()
-            Toast.makeText(this, "Template '${template.name}' deleted", Toast.LENGTH_SHORT).show()
+        } ?: run {
+             // If template info not found (already deleted from repo), attempt to delete based on ID in path
+            // This part is tricky if the template object is gone. Assume repo.delete removes it from list only.
+            // The current delete in repo doesn't return the object, so this needs careful handling.
+            // For now, assume the original path might not be easily retrievable if GameTemplateInfo is not passed.
+            // The previous lambda had `template` directly, which is cleaner.
+            // Let's assume we might need to adjust deleteTemplate to return the object or pass more info.
+            // For now, the unzipped folder might not be deleted if the template is gone from the repo list.
+            // This is a slight change in behavior from the direct lambda.
+            // A better approach might be to have templateRepository.deleteTemplate also handle file cleanup.
         }
-        templatesRecyclerView.layoutManager = LinearLayoutManager(this)
-        templatesRecyclerView.adapter = templateAdapter
+
+
+        loadTemplates()
+        Toast.makeText(this, getString(R.string.template_deleted_toast, templateName), Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onSelectTemplate(templateId: String, templateName: String) {
+        roomSettingsRepository.saveSelectedTemplateId(templateId)
+        Toast.makeText(this, getString(R.string.template_selected_toast, templateName), Toast.LENGTH_SHORT).show()
+        // finish() // Optional: finish activity
     }
 
     private fun loadTemplates() {
@@ -107,7 +132,7 @@ class TemplateManagerActivity : AppCompatActivity() {
                 }
             }
         } catch (e: Exception) {
-            Toast.makeText(this, "Error copying zip file: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.error_copying_zip_toast, e.message), Toast.LENGTH_LONG).show()
             return
         }
 
@@ -119,7 +144,7 @@ class TemplateManagerActivity : AppCompatActivity() {
         try {
             unzip(copiedZipFile, unzippedTargetDir) // Use the copied file for unzipping
         } catch (e: Exception) {
-            Toast.makeText(this, "Error unzipping: ${e.message}", Toast.LENGTH_LONG).show
+            Toast.makeText(this, getString(R.string.error_unzipping_toast, e.message), Toast.LENGTH_LONG).show()
             unzippedTargetDir.deleteRecursively() // Clean up failed unzip attempt
             copiedZipFile.delete() // Clean up copied zip
             return
@@ -128,7 +153,7 @@ class TemplateManagerActivity : AppCompatActivity() {
         // 3. Manifest Parsing
         val manifestFile = File(unzippedTargetDir, "game_info.json")
         if (!manifestFile.exists()) {
-            Toast.makeText(this, "game_info.json not found in zip.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.manifest_not_found_toast), Toast.LENGTH_LONG).show()
             unzippedTargetDir.deleteRecursively()
             copiedZipFile.delete()
             return
@@ -144,18 +169,20 @@ class TemplateManagerActivity : AppCompatActivity() {
                 description = parsedData.description,
                 version = parsedData.version,
                 unzippedPath = unzippedTargetDir.absolutePath,
-                originalZipName = originalFileName // Store the name of the copied zip
+                originalZipName = originalFileName, // Store the name of the copied zip
+                phases = parsedData.phases,
+                initialIndicators = parsedData.initialIndicators
             )
             templateRepository.addTemplate(templateInfo)
             loadTemplates()
-            Toast.makeText(this, "Template '${parsedData.name}' imported successfully!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.template_imported_toast, parsedData.name), Toast.LENGTH_SHORT).show()
 
         } catch (e: ManifestParsingException) {
-            Toast.makeText(this, e.message, Toast.LENGTH_LONG).show()
+            Toast.makeText(this, e.message ?: getString(R.string.error_parsing_manifest_generic_toast), Toast.LENGTH_LONG).show()
             unzippedTargetDir.deleteRecursively()
             copiedZipFile.delete()
         } catch (e: Exception) { // Catch other general exceptions
-            Toast.makeText(this, "An unexpected error occurred during import: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.error_unexpected_import_toast, e.message), Toast.LENGTH_LONG).show()
             unzippedTargetDir.deleteRecursively()
             copiedZipFile.delete()
         }

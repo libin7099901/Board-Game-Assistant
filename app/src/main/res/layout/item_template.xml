@@ -41,14 +41,28 @@
         android:layout_marginTop="2dp"/>
 
 
-    <Button
-        android:id="@+id/deleteTemplateButton"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:orientation="horizontal"
         android:layout_marginTop="8dp"
-        android:text="Delete"
-        style="?android:attr/buttonBarButtonStyle"
-        android:textColor="@android:color/holo_red_dark"
-        android:layout_gravity="end"/>
+        android:gravity="end">
+
+        <Button
+            android:id="@+id/selectTemplateButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/template_item_select"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_marginEnd="8dp"/>
+
+        <Button
+            android:id="@+id/deleteTemplateButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/delete_button"
+            style="?android:attr/buttonBarButtonStyle"
+            android:textColor="@android:color/holo_red_dark"/>
+    </LinearLayout>
 
 </LinearLayout>

@@ -41,5 +41,22 @@
     <string name="template_item_original_prefix">Original: </string>
     <string name="template_item_original_na">N/A</string>
     <string name="delete_button">Delete</string>
+    <string name="template_item_select">Select for Room</string>
+    <string name="template_selected_toast">Template \'%s\' selected for the next game.</string>
+    <string name="error_parsing_manifest_generic_toast">Error parsing game_info.json.</string>
+    <string name="error_unexpected_import_toast">An unexpected error occurred during import: %s</string>
+
+    <!-- RoomViewModel Strings -->
+    <string name="room_no_template_loaded">No template loaded.</string>
+    <string name="room_no_template_selected_error">No template selected. Please select one from Manage Templates.</string>
+    <string name="room_no_template_id_provided_error">Error: No template ID provided to load.</string>
+    <string name="room_template_not_found_error">Error: Template not found (ID: %s).</string>
+    <string name="room_phase_display_prefix">Phase: %s</string>
+    <string name="room_no_phases_in_template_error">No phases in current template.</string>
+    <string name="room_game_state_not_initialized_error">Error: Game state not initialized.</string>
+    <string name="template_item_version_prefix">Version: %s</string>
+    <string name="template_item_version_na_suffix">N/A</string>
+    <string name="template_item_original_na_suffix">N/A</string>
+
 
 </resources>

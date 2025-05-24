@@ -6,5 +6,7 @@ data class GameTemplateInfo(
     val description: String?,
     val version: String?,
     val unzippedPath: String,
-    val originalZipName: String?
+    val originalZipName: String?,
+    val phases: List<String> = emptyList(),
+    val initialIndicators: List<com.example.tabletopcompanion.model.template.ParsedIndicatorInfo> = emptyList()
 )
