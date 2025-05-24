@@ -22,9 +22,38 @@
             android:theme="@style/Theme.TabletopCompanion">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+        <activity
+            android:name=".ui.ProfileSetupActivity"
+            android:exported="false"
+            android:label="Profile Setup"
+            android:theme="@style/Theme.TabletopCompanion">
+        </activity>
+        <activity
+            android:name=".ui.CreateRoomActivity"
+            android:exported="false"
+            android:label="Create Room"
+            android:theme="@style/Theme.TabletopCompanion">
+        </activity>
+        <activity
+            android:name=".ui.RoomActivity"
+            android:exported="false"
+            android:label="Game Room"
+            android:theme="@style/Theme.TabletopCompanion">
+        </activity>
+        <activity
+            android:name=".ui.JoinRoomActivity"
+            android:exported="false"
+            android:label="Join Game Room"
+            android:theme="@style/Theme.TabletopCompanion">
+        </activity>
+        <activity
+            android:name=".ui.TemplateManagerActivity"
+            android:exported="false"
+            android:label="Manage Templates"
+            android:theme="@style/Theme.TabletopCompanion">
         </activity>
     </application>
 
